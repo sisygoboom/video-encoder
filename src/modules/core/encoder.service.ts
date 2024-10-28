@@ -189,20 +189,14 @@ export class EncoderService {
         })
       ])
     }, 500)
-    const downloadProcess = execa('wget', [sourceUrl, '-O', Path.join(downloadFolder, `${jobInfo.id}_src.mp4`)], {
-      // on
-    })
-
-    if(downloadProcess.stderr) {
-      //   downloadProgress.stderr.pipe(process.stdout)
+    const downloadProcess = execa('wget', [sourceUrl, '-O', Path.join(downloadFolder, `${jobInfo.id}_src.mp4`)]);
+    if (downloadProcess.stderr) {
         for await(let chunk of downloadProcess.stderr) {
           const outArray = chunk.toString().split(' ')
-          // console.log(outArray)
           const percentage = outArray.find(e => e.includes('%'));
           if(percentage) {
               const pctArray = percentage.split('%')
               if(Number(pctArray[0]) !== 0) {
-                  // console.log(pctArray[0])
                   download_pct = Number(pctArray[0])
               }
           }
@@ -239,10 +233,10 @@ export class EncoderService {
     // }
     console.log(`Downloaded to `, srcVideo, `in ${new Date().getTime() - startTime.getTime()}ms`)
 
-    var command = ffmpeg(srcVideo)
+    const command = ffmpeg(srcVideo)
 
-    var codec = await new Promise((resolve, reject) =>
-      ffmpeg.getAvailableEncoders(async (e, enc) => {
+    const codec = await new Promise((resolve, reject) =>
+      ffmpeg.getAvailableEncoders((e, enc) => {
         /*if (jobInfo.options.hwaccel !== null || jobInfo.options.hwaccel !== 'none') {
           for (var key of Object.keys(enc)) {
             if (key.includes(`h264_${jobInfo.options.hwaccel}`)) {
@@ -254,17 +248,24 @@ export class EncoderService {
           console.log(e)
         }
         if(enc) {
-          for (var key of Object.keys(enc)) {
-            if (key.includes(`h264_qsv`)) {
-              return resolve(key)
-            }
+          if (enc['h264_nvenc']) {
+            return resolve('h264_nvenc');
+          } else if (enc['h264_qsv']) {
+            return resolve('h264_qsv');
+          } else if (enc['libx264']) {
+            return resolve('libx264');
           }
         }
         return resolve('libx264')
       }),
     )
-    console.log(`Info: using ${codec}`)
-    if(codec === "h264_qsv") {
+
+    console.log(`Info: using ${codec}`);
+    if (codec === "h264_nvenc") {
+      command.addOption('-preset', 'fast')
+      command.addOption('-rc', 'vbr')
+      command.addOption('-cq', '24')
+    } else if (codec === "h264_qsv") {
       command.addOption('-preset', 'slow')
       command.addOption('-look_ahead', '1')
       command.addOption('-global_quality', '36')

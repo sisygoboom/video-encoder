@@ -8,12 +8,21 @@ services:
     restart: always # restart if failed, until we stop it ourselves
     #external_links:
       #- mongo
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
     depends_on:
       - ipfs
     networks:
       - spk-video-encoder
     environment:
       IPFS_HOST: ipfs:5001
+      NVIDIA_VISIBLE_DEVICES: all
+      NVIDIA_DRIVER_CAPABILITIES: all
     volumes:
       - ./data/video-encoder:/root/.spk-encoder
   ipfs:
